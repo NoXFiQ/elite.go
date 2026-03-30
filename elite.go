@@ -1,4 +1,9 @@
-apt update && apt install -y golang dos2unix && cat > elite-x.go << 'GO_EOF'
+# Clone repository
+git clone https://github.com/NoXFiQ/elite.go.git
+cd elite.go
+
+# Weka Go code sahihi
+cat > elite.go << 'GO_EOF'
 package main
 
 import (
@@ -52,22 +57,19 @@ type User struct {
 func main() {
     clearScreen()
     fmt.Printf("%s╔═══════════════════════════════════════════════════════════════╗%s\n", Purple, NC)
-    fmt.Printf("%s║%s%s                   ELITE-X SLOWDNS v%s                        %s║%s\n", Purple, Yellow, Bold(), Version, Purple, NC)
-    fmt.Printf("%s║%s%s              Advanced • Secure • Ultra Fast                    %s║%s\n", Purple, Green, Bold(), Purple, NC)
+    fmt.Printf("%s║%s%s                   ELITE-X SLOWDNS v%s                        %s║%s\n", Purple, Yellow, bold(), Version, Purple, NC)
+    fmt.Printf("%s║%s%s              Advanced • Secure • Ultra Fast                    %s║%s\n", Purple, Green, bold(), Purple, NC)
     fmt.Printf("%s╚═══════════════════════════════════════════════════════════════╝%s\n", Purple, NC)
     fmt.Println()
 
-    // Create directories
     os.MkdirAll(ConfigDir, 0755)
     os.MkdirAll(UsersDir, 0755)
     os.MkdirAll(TrafficDir, 0755)
     os.MkdirAll(DNSTTDir, 0755)
 
-    // Load existing data
     loadUsers()
     loadTraffic()
 
-    // Signal handling
     sigChan := make(chan os.Signal, 1)
     signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
     go func() {
@@ -76,15 +78,12 @@ func main() {
         os.Exit(0)
     }()
 
-    // Start services
     startDNSTTServer()
     startTrafficMonitor()
-
-    // Main menu
     mainMenu()
 }
 
-func Bold() string {
+func bold() string {
     return "\033[1m"
 }
 
@@ -93,48 +92,33 @@ func clearScreen() {
 }
 
 func loadUsers() {
-    files, err := ioutil.ReadDir(UsersDir)
-    if err != nil {
-        return
-    }
+    files, _ := ioutil.ReadDir(UsersDir)
     for _, f := range files {
         if f.IsDir() {
             continue
         }
-        data, err := ioutil.ReadFile(filepath.Join(UsersDir, f.Name()))
-        if err != nil {
-            continue
-        }
+        data, _ := ioutil.ReadFile(filepath.Join(UsersDir, f.Name()))
         var u User
-        if err := json.Unmarshal(data, &u); err == nil {
+        if json.Unmarshal(data, &u) == nil {
             users[u.Username] = &u
         }
     }
 }
 
 func loadTraffic() {
-    files, err := ioutil.ReadDir(TrafficDir)
-    if err != nil {
-        return
-    }
+    files, _ := ioutil.ReadDir(TrafficDir)
     for _, f := range files {
         if f.IsDir() {
             continue
         }
-        data, err := ioutil.ReadFile(filepath.Join(TrafficDir, f.Name()))
-        if err != nil {
-            continue
-        }
+        data, _ := ioutil.ReadFile(filepath.Join(TrafficDir, f.Name()))
         val, _ := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
         traffic[f.Name()] = val
     }
 }
 
 func saveUser(u *User) error {
-    data, err := json.MarshalIndent(u, "", "  ")
-    if err != nil {
-        return err
-    }
+    data, _ := json.MarshalIndent(u, "", "  ")
     return ioutil.WriteFile(filepath.Join(UsersDir, u.Username), data, 0644)
 }
 
@@ -178,7 +162,6 @@ func addUser() {
     maxLoginsStr, _ := reader.ReadString('\n')
     maxLogins, _ := strconv.Atoi(strings.TrimSpace(maxLoginsStr))
 
-    // Create system user
     cmd := exec.Command("useradd", "-m", "-s", "/bin/false", username)
     cmd.Run()
     cmd = exec.Command("sh", "-c", fmt.Sprintf("echo '%s:%s' | chpasswd", username, password))
@@ -433,7 +416,6 @@ func speedTest() {
 func showDashboard() {
     clearScreen()
 
-    // Get IP
     ipCmd := exec.Command("curl", "-4", "-s", "ifconfig.me")
     ipOut, _ := ipCmd.Output()
     ip := strings.TrimSpace(string(ipOut))
@@ -441,7 +423,6 @@ func showDashboard() {
         ip = "Unknown"
     }
 
-    // Get RAM
     ramCmd := exec.Command("free", "-m")
     ramOut, _ := ramCmd.Output()
     ramLines := strings.Split(string(ramOut), "\n")
@@ -456,19 +437,17 @@ func showDashboard() {
         }
     }
 
-    // Get active connections
     sshCmd := exec.Command("ss", "-tnp")
     sshOut, _ := sshCmd.Output()
     sshCount := strings.Count(string(sshOut), ":22") - strings.Count(string(sshOut), "LISTEN")
 
-    // Calculate total traffic
     totalTraffic := int64(0)
     for _, v := range traffic {
         totalTraffic += v
     }
 
     fmt.Printf("%s╔════════════════════════════════════════════════════════════════╗%s\n", Purple, NC)
-    fmt.Printf("%s║%s%s                    ELITE-X SLOWDNS v%s                       %s║%s\n", Purple, Yellow, Bold(), Version, Purple, NC)
+    fmt.Printf("%s║%s%s                    ELITE-X SLOWDNS v%s                       %s║%s\n", Purple, Yellow, bold(), Version, Purple, NC)
     fmt.Printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", Purple, NC)
     fmt.Printf("%s║%s  IP        :%s %-50s%s║%s\n", Purple, White, Green, ip, Purple, NC)
     fmt.Printf("%s║%s  RAM       :%s %sMB / %sMB%-42s%s║%s\n", Purple, White, Green, ramUsed, ramTotal, "", Purple, NC)
@@ -483,7 +462,6 @@ func showDashboard() {
 }
 
 func startDNSTTServer() {
-    // Simple DNS tunnel simulation
     go func() {
         addr, _ := net.ResolveUDPAddr("udp", ":5300")
         conn, _ := net.ListenUDP("udp", addr)
@@ -493,7 +471,6 @@ func startDNSTTServer() {
             for {
                 n, clientAddr, _ := conn.ReadFromUDP(buffer)
                 if n > 0 {
-                    // Forward to SSH
                     sshConn, _ := net.Dial("tcp", "127.0.0.1:22")
                     if sshConn != nil {
                         sshConn.Write(buffer[:n])
@@ -537,7 +514,7 @@ func mainMenu() {
     for {
         showDashboard()
         fmt.Printf("%s╔════════════════════════════════════════════════════════════════╗%s\n", Cyan, NC)
-        fmt.Printf("%s║%s%s                         MAIN MENU                              %s║%s\n", Cyan, Green, Bold(), Cyan, NC)
+        fmt.Printf("%s║%s%s                         MAIN MENU                              %s║%s\n", Cyan, Green, bold(), Cyan, NC)
         fmt.Printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", Cyan, NC)
         fmt.Printf("%s║%s  [1] 👤 Add User%s\n", Cyan, White, NC)
         fmt.Printf("%s║%s  [2] 📊 View All Users%s\n", Cyan, White, NC)
@@ -583,4 +560,8 @@ func mainMenu() {
     }
 }
 GO_EOF
-dos2unix elite-x.go && go build -o elite-x elite-x.go && cp elite-x /usr/local/bin/ && chmod +x /usr/local/bin/elite-x && rm -f elite-x.go && elite-x
+
+# Push kwenye GitHub
+git add elite.go
+git commit -m "Fix: Correct Go code for ELITE-X"
+git push
